@@ -3,6 +3,7 @@
 // The room's host (first player in) runs the game simulation and bots; everyone else sends
 // their own position + shots to the host and receives snapshots back.
 const { WebSocketServer } = require('ws');
+const { identify } = require('./pass');
 
 const PORT = process.env.PORT || 8080;
 const LOBBY_MS = 10000;   // wait this long after someone clicks Play so more players can join
@@ -46,7 +47,11 @@ wss.on('connection', (ws, req) => {
   const url = new URL(req.url, 'http://x');
   const r = getRoom((url.searchParams.get('room') || 'public').slice(0, 24));
   if (r.players.size >= MAX_PLAYERS) { ws.send(JSON.stringify({ type: 'full' })); ws.close(); return; }
-  const p = { id: 'p' + nextId++, ws, name: 'Player ' + (++r.counter), hex: 0x2f6fe0, shape: 'Bean' };
+  const who = identify(url.searchParams.get('pass'));
+  if (!who) { ws.send(JSON.stringify({ type: 'signin' })); ws.close(); return; }
+  const p = { id: 'p' + nextId++, ws, name: who.name || 'Player ' + (++r.counter), hex: 0x2f6fe0, shape: 'Bean' };
+  // A Marshellis pass carries the parent's play-time limit: when it runs out the connection closes.
+  if (who.expiresAt) setTimeout(() => { try { ws.send(JSON.stringify({ type: 'timeup' })); ws.close(4003); } catch {} }, Math.max(0, who.expiresAt * 1000 - Date.now()));
   r.players.set(p.id, p);
   if (!r.hostId) r.hostId = p.id;
   send(p, { type: 'welcome', id: p.id });

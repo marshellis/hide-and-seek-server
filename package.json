@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "description": "Room / lobby relay server for the Hide & Seek game",
   "main": "server.js",
-  "scripts": { "start": "node server.js" },
+  "scripts": { "start": "node server.js", "test": "node --test pass.test.js" },
   "dependencies": { "ws": "^8.18.0" }
 }
